@@ -1,0 +1,78 @@
+services:
+  elasticsearch:
+    build: ./elasticsearch
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.keystore.path=/usr/share/elasticsearch/config/elasticsearch.p12
+      - xpack.security.http.ssl.keystore.password=yourpassword  # 위에서 설정한 비밀번호
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+      - ./elasticsearch.p12:/usr/share/elasticsearch/config/elasticsearch.p12  # 수정된 경로
+      - ./elasticsearch.crt:/usr/share/elasticsearch/config/elasticsearch.crt
+      - ./elasticsearch.key:/usr/share/elasticsearch/config/elasticsearch.key
+    ports:
+      - "9200:9200"
+    networks:
+      - msa-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.1.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    volumes:
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./elasticsearch.crt:/usr/share/kibana/config/elasticsearch.crt
+      - ./elasticsearch.key:/usr/share/kibana/config/elasticsearch.key
+    ports:
+      - "5601:5601"
+    networks:
+      - msa-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.1.0
+    container_name: logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    ports:
+      - "5044:5044"
+    networks:
+      - msa-network
+
+  filebeat:
+    build: ./filebeat
+    container_name: filebeat
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - filebeat_data:/usr/share/filebeat/data
+    networks:
+      - msa-network
+    depends_on:
+      - elasticsearch
+    command: bash -c "chmod 755 /usr/share/filebeat/filebeat.yml && /usr/local/bin/docker-entrypoint -e"
+
+
+networks:
+  msa-network:
+    external: true
+
+volumes:
+  es_data:
+    driver: local
+  filebeat_data:
+    driver: local

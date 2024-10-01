@@ -1,0 +1,22 @@
+[req]
+default_bits       = 2048
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+prompt             = no
+
+[req_distinguished_name]
+C  = KR
+ST = Seoul
+L  = Your City
+O  = Your Organization
+OU = Your Organizational Unit
+CN = 54.180.138.141 # EC2 IP 주소
+emailAddress = email@example.com
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = 54.180.138.141  # EC2 IP 주소 추가
+DNS.1 = localhost
+DNS.2 = j11a102.p.ssafy.io
